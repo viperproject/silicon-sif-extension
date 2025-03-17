@@ -18,8 +18,8 @@ trait CounterexampleSIFTransformer extends SIFExtendedTransformer {
     var newPrimeStore = Store() // ce.internalStore
     var newHeap: Seq[Chunk] = Seq() //ce.heap
     var newPrimeHeap: Seq[Chunk] = Seq() //ce.heap
-    var newOldHeap: Option[Seq[Chunk]] = if (ce.oldHeap.isDefined) Some(Seq()) else None // ce.oldHeap
-    var newPrimeOldHeap: Option[Seq[Chunk]] = if (ce.oldHeap.isDefined) Some(Seq()) else None // ce.oldHeap
+    var newOldHeap: Option[Seq[Chunk]] = if (ce.oldHeaps.contains("old")) Some(Seq()) else None // ce.oldHeap
+    var newPrimeOldHeap: Option[Seq[Chunk]] = if (ce.oldHeaps.contains("old")) Some(Seq()) else None // ce.oldHeap
     for ((n, np) <- primedNamesPerMethod.get(methodName).get) {
       if (ce.store.contains(n)) {
         // this is a variable
@@ -33,24 +33,24 @@ trait CounterexampleSIFTransformer extends SIFExtendedTransformer {
 
       for (c <- ce.heap) {
         c match {
-          case BasicChunk(resourceID, id, args, snap, perm) => {
+          case BasicChunk(resourceID, id, args, argsExp, snap, snapExp, perm, permExp) => {
             if (id.name == n) {
               newHeap ++= Seq(c)
             }else if (id.name == np) {
-              newPrimeHeap ++= Seq(BasicChunk(resourceID, BasicChunkIdentifier(n), args, snap, perm))
+              newPrimeHeap ++= Seq(BasicChunk(resourceID, BasicChunkIdentifier(n), args, argsExp, snap, snapExp, perm, permExp))
             }
           }
           case _ =>
         }
       }
-      if (ce.oldHeap.isDefined) {
-        for (c <- ce.oldHeap.get) {
+      if (ce.oldHeaps.contains("old")) {
+        for (c <- ce.oldHeaps("old")) {
           c match {
-            case BasicChunk(resourceID, id, args, snap, perm) => {
+            case BasicChunk(resourceID, id, args, argsExp, snap, snapExp, perm, permExp) => {
               if (id.name == n) {
                 newOldHeap = Some(newOldHeap.get ++ Seq(c))
               } else if (id.name == np) {
-                newPrimeOldHeap = Some(newPrimeOldHeap.get ++ Seq(BasicChunk(resourceID, BasicChunkIdentifier(n), args, snap, perm)))
+                newPrimeOldHeap = Some(newPrimeOldHeap.get ++ Seq(BasicChunk(resourceID, BasicChunkIdentifier(n), args, argsExp, snap, snapExp, perm, permExp)))
               }
             }
             case _ =>
@@ -59,7 +59,15 @@ trait CounterexampleSIFTransformer extends SIFExtendedTransformer {
       }
 
     }
-    SiliconNativeSIFCounterexample(newStore, newHeap, newOldHeap, ce.model, SiliconNativeCounterexample(newPrimeStore, newPrimeHeap, newPrimeOldHeap, ce.model))
+    val newOldHeapMap: Map[String, Iterable[Chunk]] = newOldHeap match {
+      case None => Map()
+      case Some(chunks) => Map("old" -> chunks)
+    }
+    val newPrimeOldHeapMap: Map[String, Iterable[Chunk]] = newPrimeOldHeap match {
+      case None => Map()
+      case Some(chunks) => Map("old" -> chunks)
+    }
+    SiliconNativeSIFCounterexample(newStore, newHeap, newOldHeapMap, ce.model, SiliconNativeCounterexample(newPrimeStore, newPrimeHeap, newPrimeOldHeapMap, ce.model))
   }
 }
 
